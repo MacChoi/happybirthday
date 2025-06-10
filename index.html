@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Player</title>
+    <style>
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden; /* 스크롤바 방지 */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            /* min-height: 100vh; */
+            background-color: #f0f0f0;
+            transition: background-color 0.3s ease;
+        }
+
+        body.dark-mode {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+
+        .menu-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 9999;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .menu-button.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .menu-button:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .popup-menu {
+            position: fixed;
+            top: 0;
+            right: -300px;
+            width: 300px;
+            height: 100vh;
+            background-color: white;
+            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            z-index: 10002;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .popup-menu.active {
+            right: 0;
+        }
+
+        .popup-menu.dark-mode {
+            background-color: #2d2d2d;
+            color: #ffffff;
+        }
+
+        .music-list {
+            margin-top: 60px;
+            list-style: none;
+        }
+
+        .music-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .music-item:last-child {
+            border-bottom: none;
+        }
+
+        .play-button, .stop-button {
+            margin-left: 10px;
+            padding: 5px 10px;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .play-button {
+            background-color: #28a745;
+        }
+
+        .play-button:hover {
+            background-color: #218838;
+        }
+
+        .stop-button {
+            background-color: #dc3545;
+        }
+
+        .stop-button:hover {
+            background-color: #c82333;
+        }
+
+        .audio-player {
+            display: none;
+        }
+
+        .candle-settings {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .candle-settings h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .candle-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #ddd;
+            outline: none;
+        }
+
+        .candle-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #007bff;
+            cursor: pointer;
+        }
+
+        .candle-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #007bff;
+            cursor: pointer;
+        }
+
+        .candle-count {
+            min-width: 40px;
+            text-align: center;
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .dark-mode-toggle {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .dark-mode-toggle.dark-mode {
+            background-color: #3d3d3d;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #007bff;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .dark-mode-label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .dark-mode .dark-mode-label {
+            color: #ffffff;
+        }
+
+        .candle-container {
+            position: relative;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none; /* 클릭 이벤트 방지 */
+        }
+
+        .candle-item {
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform: translate(-50%, -50%); /* 캔들 자체를 중앙 정렬 (left/top 좌표 기준) */
+        }
+
+        .candle-item img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            position: absolute; /* z-index를 위해 필요 */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .candle-flame-effect {
+            position: absolute;
+            top: 0%; /* 캔들 이미지의 불꽃 시작점에 맞게 조정 */
+            left: 50%;
+            transform: translateX(-50%) translateY(5%); /* 미세 조정 */
+            width: 40%; /* 캔들 너비 대비 */
+            height: 25%; /* 캔들 높이 대비, 불꽃 영역에 맞게 */
+            background-color: rgba(255, 200, 0, 0.6); /* 노란색 계열의 투명한 빛 */
+            border-radius: 50%; /* 원형 또는 타원형 모양 */
+            filter: blur(10px); /* 빛 번짐 효과 */
+            animation: flicker 0.4s infinite alternate; /* 일렁이는 애니메이션 적용 */
+            z-index: 10001; /* fire.png 위에 위치하고 최상단 레이어로 변경 */
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.6; transform: translateX(-50%) scale(0.9) translateX(-2px); }
+            50% { opacity: 1.0; transform: translateX(-50%) scale(1.0) translateX(2px); }
+            100% { opacity: 0.6; transform: translateX(-50%) scale(0.9) translateX(-2px); }
+        }
+    </style>
+</head>
+<body>
+    <button class="menu-button">Menu</button>
+    
+    <canvas id="fireCanvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10000; pointer-events: none;"></canvas>
+
+    <div class="candle-container" id="candleContainer">
+        <!-- 캔들 이미지가 여기에 동적으로 추가됩니다 -->
+        <!-- <canvas id="fireCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;"></canvas> -->
+    </div>
+
+    <div class="popup-menu">
+        <h2>Music List</h2>
+        <div class="dark-mode-toggle">
+            <span class="dark-mode-label">Dark Mode</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="darkModeToggle">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="candle-settings">
+            <h3>Candle Settings</h3>
+            <div class="slider-container">
+                <input type="range" min="1" max="100" value="20" class="candle-slider" id="candleSlider">
+                <span class="candle-count" id="candleCount">20</span>
+            </div>
+        </div>
+        <ul class="music-list" id="musicList">
+            <!-- 음악 목록이 여기에 동적으로 추가됩니다 -->
+        </ul>
+    </div>
+
+    <audio id="audioPlayer" class="audio-player" controls></audio>
+
+    <script>
+        // 메뉴 버튼 클릭 이벤트
+        const menuButton = document.querySelector('.menu-button');
+        const popupMenu = document.querySelector('.popup-menu');
+        const musicList = document.getElementById('musicList');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const candleSlider = document.getElementById('candleSlider');
+        const candleCount = document.getElementById('candleCount');
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const darkModeToggleContainer = document.querySelector('.dark-mode-toggle');
+        const candleContainer = document.getElementById('candleContainer');
+        
+        let fireData = []; // WebGL 불꽃 데이터 전역 선언
+
+        // Global (or DOMContentLoaded-scoped) image element for the fire texture
+        let fireImage = new Image();
+        let isDrawingStarted = false; // To ensure drawScene is called only once after initial texture load
+
+        // This function will be called to update the texture source
+        function updateFireTextureSource(isDarkMode) {
+            console.log(`[updateFireTextureSource] isDarkMode: ${isDarkMode}`);
+            fireImage.src = isDarkMode ? 'images/fire.png' : 'images/fire2.png';
+            console.log(`[updateFireTextureSource] setting fireImage.src to: ${fireImage.src}`);
+        }
+        
+        // 로컬 스토리지에서 캔들 개수 로드
+        const savedCandleCount = localStorage.getItem('candleCount');
+        if (savedCandleCount) {
+            candleSlider.value = savedCandleCount;
+            candleCount.textContent = savedCandleCount;
+        }
+
+        // 로컬 스토리지에서 다크모드 설정 로드 (초기값 다크모드)
+        let savedDarkMode = localStorage.getItem('darkMode');
+        if (savedDarkMode === null) { // 첫 방문 시 초기값을 dark-mode로 설정
+            savedDarkMode = 'enabled';
+            localStorage.setItem('darkMode', 'enabled');
+        }
+
+        if (savedDarkMode === 'enabled') {
+            document.body.classList.add('dark-mode');
+            popupMenu.classList.add('dark-mode');
+            darkModeToggleContainer.classList.add('dark-mode');
+            darkModeToggle.checked = true;
+        }
+        
+        // 캔들 개수 업데이트
+        candleSlider.addEventListener('input', () => {
+            candleCount.textContent = candleSlider.value;
+            updateCandles(parseInt(candleSlider.value));
+            localStorage.setItem('candleCount', candleSlider.value); // 로컬 스토리지에 저장
+        });
+
+        // 캔들 업데이트 함수
+        function updateCandles(count) {
+            candleContainer.innerHTML = ''; // 기존 캔들 제거
+            fireData = []; // WebGL 불꽃 데이터 초기화
+
+            if (count === 0) return;
+
+            const totalWidth = window.innerWidth;
+            const totalHeight = window.innerHeight;
+            const aspectRatio = 250 / 80; // candle.png의 실제 높이/너비 비율 (250px / 80px)
+
+            let largeCandleCount;
+            let smallCandleCount;
+
+            if (count < 10) {
+                largeCandleCount = count; // 10개 미만일 때는 모두 큰 초
+                smallCandleCount = 0;
+            } else {
+                largeCandleCount = Math.floor(count / 10);
+                smallCandleCount = count % 10;
+            }
+            
+            const totalVisualCandles = largeCandleCount + smallCandleCount; 
+
+            // 캔들 간 최소 여백을 다시 정의
+            const minPadding = 10;
+
+            if (totalVisualCandles === 0) return; 
+
+            const center_x = totalWidth / 2;
+            const center_y = totalHeight / 2;
+
+            // 고정된 캔들 크기 설정 (픽셀 단위)
+            const fixedLargeCandleWidth = 100; // 큰 초의 고정 너비
+            const fixedSmallCandleWidth = 50;  // 작은 초의 고정 너비
+
+            let largeCandleFinalWidth = fixedLargeCandleWidth;
+            let largeCandleFinalHeight = fixedLargeCandleWidth * aspectRatio;
+
+            let smallCandleFinalWidth = fixedSmallCandleWidth;
+            let smallCandleFinalHeight = fixedSmallCandleWidth * aspectRatio;
+            
+
+            // 큰 캔들 배치 (중앙 원형 배치, 겹치지 않게)
+            let largeCandleRadius = largeCandleFinalWidth / 2 + minPadding; // 캔들 크기와 패딩 고려한 반지름 (minPadding은 이제 영향을 덜 줄 수 있음)
+            if (largeCandleCount > 1) {
+                // 여러 개의 큰 캔들이 겹치지 않도록 반지름 조절
+                largeCandleRadius = (largeCandleFinalWidth / (2 * Math.sin(Math.PI / largeCandleCount))) + minPadding;
+            }
+            if (largeCandleCount === 1) largeCandleRadius = 0; // 1개일 땐 중앙에 고정
+            
+            for (let i = 0; i < largeCandleCount; i++) {
+                const candleItem = document.createElement('div');
+                candleItem.className = 'candle-item';
+                candleItem.style.width = `${largeCandleFinalWidth}px`;
+                candleItem.style.height = `${largeCandleFinalHeight}px`;
+
+                const angle = (i / largeCandleCount) * 2 * Math.PI; 
+                let x = center_x + largeCandleRadius * Math.cos(angle);
+                let y = center_y + largeCandleRadius * Math.sin(angle);
+
+                // 화면 경계 체크 및 조정
+                x = Math.max(largeCandleFinalWidth / 2, Math.min(totalWidth - largeCandleFinalWidth / 2, x));
+                y = Math.max(largeCandleFinalHeight / 2, Math.min(totalHeight - largeCandleFinalHeight / 2, y));
+
+                // z-index 적용: y 좌표가 높을수록 (아래쪽에 있을수록) z-index도 높게
+                // 큰 캔들은 작은 캔들보다 항상 위에 오도록 1000을 더하고, i로 순서 보장
+                candleItem.style.zIndex = Math.floor(y) + 1000 + i; 
+
+                candleItem.style.left = `${x}px`;
+                candleItem.style.top = `${y}px`;
+
+                const img = document.createElement('img');
+                img.src = 'images/candle.png';
+                img.alt = 'Candle';
+                img.style.filter = `hue-rotate(${Math.random() * 360}deg)`; // 무작위 색상 필터 적용
+                img.style.zIndex = 0; // 배경 캔들 이미지
+                candleItem.appendChild(img);
+                
+                // fire.png 이미지 추가 (WebGl로 대체)
+                // const fireImg = document.createElement('img');
+                // fireImg.src = 'images/fire.png';
+                // fireImg.alt = 'Fire';
+                // fireImg.style.zIndex = 1; // 캔들 이미지 위에 위치
+                // candleItem.appendChild(fireImg);
+
+                // 불꽃 효과 div 다시 추가
+                const flameEffectDiv = document.createElement('div');
+                flameEffectDiv.className = 'candle-flame-effect';
+                flameEffectDiv.style.animationDelay = `${Math.random() * 0.4}s`; // 0s ~ 0.4s 지연
+                flameEffectDiv.style.animationDuration = `${0.3 + Math.random() * 0.2}s`; // 0.3s ~ 0.5s 속도
+                candleItem.appendChild(flameEffectDiv);
+
+                candleContainer.appendChild(candleItem);
+
+                // WebGL 불꽃 데이터 추가
+                fireData.push({
+                    x: x - largeCandleFinalWidth / 2, // 캔들 아이템의 중앙 좌표이므로 왼쪽 상단 좌표로 변환
+                    y: y - largeCandleFinalHeight / 2,
+                    width: largeCandleFinalWidth,
+                    height: largeCandleFinalHeight,
+                    randomSeed: Math.random() // 각 불꽃에 고유한 랜덤 시드 추가
+                });
+            }
+
+            // 작은 캔들 배치 (큰 캔들 주변 타원형 불규칙)
+            // 타원의 시작 반지름을 큰 캔들 그룹의 바깥쪽에서 시작하도록 조정
+            const minEllipseRadius = largeCandleCount > 0 ? largeCandleRadius + largeCandleFinalWidth / 2 + smallCandleFinalWidth / 2 + minPadding * 2 : Math.min(totalWidth, totalHeight) * 0.1;
+            const ellipseRadiusX = Math.max(minEllipseRadius, Math.min(totalWidth, totalHeight) * 0.45); 
+            const ellipseRadiusY = Math.max(minEllipseRadius * 0.7, Math.min(totalWidth, totalHeight) * 0.35); // 타원 세로 반지름은 가로보다 작게
+            const irregularityFactor = 0.8; // 불규칙성 정도 (0.0 ~ 1.0) -> 더 불규칙하게
+
+            for (let i = 0; i < smallCandleCount; i++) {
+                const candleItem = document.createElement('div');
+                candleItem.className = 'candle-item';
+                candleItem.style.width = `${smallCandleFinalWidth}px`;
+                candleItem.style.height = `${smallCandleFinalHeight}px`;
+
+                const angle = (i / smallCandleCount) * 2 * Math.PI; // 각도에 무작위성 제거
+                const currentRadiusX = ellipseRadiusX; // 반지름 무작위성 제거
+                const currentRadiusY = ellipseRadiusY; // 반지름 무작위성 제거
+
+                const x = center_x + currentRadiusX * Math.cos(angle);
+                const y = center_y + currentRadiusY * Math.sin(angle);
+
+                // 화면 경계 체크 및 조정
+                const finalX = Math.max(smallCandleFinalWidth / 2, Math.min(totalWidth - smallCandleFinalWidth / 2, x));
+                const finalY = Math.max(smallCandleFinalHeight / 2, Math.min(totalHeight - smallCandleFinalHeight / 2, y));
+
+                // z-index 적용: y 좌표가 높을수록 (아래쪽에 있을수록) z-index도 높게, i로 순서 보장
+                candleItem.style.zIndex = Math.floor(finalY) + i; 
+
+                candleItem.style.left = `${finalX}px`;
+                candleItem.style.top = `${finalY}px`;
+
+                const img = document.createElement('img');
+                img.src = 'images/candle.png';
+                img.alt = 'Candle';
+                img.style.filter = `hue-rotate(${Math.random() * 360}deg)`; // 무작위 색상 필터 적용
+                img.style.zIndex = 0; // 배경 캔들 이미지
+                candleItem.appendChild(img);
+
+                // fire.png 이미지 추가 (WebGl로 대체)
+                // const fireImg = document.createElement('img');
+                // fireImg.src = 'images/fire.png';
+                // fireImg.alt = 'Fire';
+                // fireImg.style.zIndex = 1; // 캔들 이미지 위에 위치
+                // candleItem.appendChild(fireImg);
+
+                // 불꽃 효과 div 다시 추가
+                const flameEffectDiv = document.createElement('div');
+                flameEffectDiv.className = 'candle-flame-effect';
+                flameEffectDiv.style.animationDelay = `${Math.random() * 0.4}s`; // 0s ~ 0.4s 지연
+                flameEffectDiv.style.animationDuration = `${0.3 + Math.random() * 0.2}s`; // 0.3s ~ 0.5s 속도
+                candleItem.appendChild(flameEffectDiv);
+
+                candleContainer.appendChild(candleItem);
+
+                // WebGL 불꽃 데이터 추가
+                fireData.push({
+                    x: finalX - smallCandleFinalWidth / 2, // 캔들 아이템의 중앙 좌표이므로 왼쪽 상단 좌표로 변환
+                    y: finalY - smallCandleFinalHeight / 2,
+                    width: smallCandleFinalWidth,
+                    height: smallCandleFinalHeight,
+                    randomSeed: Math.random() // 각 불꽃에 고유한 랜덤 시드 추가
+                });
+            }
+            console.log('Fire Data:', fireData); // 디버그 로그 추가
+        }
+
+        // 초기 캔들 생성 (저장된 값 또는 기본값 사용)
+        updateCandles(parseInt(candleSlider.value));
+
+        // 창 크기 변경 시 캔들 업데이트
+        window.addEventListener('resize', () => {
+            updateCandles(parseInt(candleSlider.value));
+        });
+
+        // 다크모드 토글 기능
+        darkModeToggle.addEventListener('change', () => {
+            console.log(`[darkModeToggle] Toggle checked: ${darkModeToggle.checked}`);
+            if (darkModeToggle.checked) {
+                document.body.classList.add('dark-mode');
+                popupMenu.classList.add('dark-mode');
+                darkModeToggleContainer.classList.add('dark-mode');
+                localStorage.setItem('darkMode', 'enabled');
+                updateFireTextureSource(true); // Update for dark mode
+            } else {
+                document.body.classList.remove('dark-mode');
+                popupMenu.classList.remove('dark-mode');
+                darkModeToggleContainer.classList.remove('dark-mode');
+                localStorage.setItem('darkMode', 'disabled');
+                updateFireTextureSource(false); // Update for light mode
+            }
+        });
+
+        // MP3 파일 목록
+        const mp3Files = [
+            'mp3/happy-birthday-1.mp3',
+            'mp3/happy-birthday-2.mp3',
+            'mp3/happy-birthday-3.mp3',
+            'mp3/happy-birthday-4.mp3',
+            'mp3/생일의 노래-1.mp3', // 생일의 노래-1 추가
+            'mp3/생일의 노래-2.mp3'  // 생일의 노래-2 추가
+        ];
+
+        // 음악 목록 생성
+        function createMusicList() {
+            // 기존 목록 비우기
+            musicList.innerHTML = '';
+            
+            // 각 MP3 파일에 대한 목록 항목 생성
+            mp3Files.forEach(file => {
+                const fileName = file.split('/').pop().replace('.mp3', '');
+                const li = document.createElement('li');
+                li.className = 'music-item';
+                
+                const span = document.createElement('span');
+                span.textContent = fileName;
+                
+                const playButton = document.createElement('button');
+                playButton.className = 'play-button';
+                playButton.textContent = 'Play';
+                playButton.setAttribute('data-src', file);
+                
+                const stopButton = document.createElement('button');
+                stopButton.className = 'stop-button';
+                stopButton.textContent = 'Stop';
+                
+                li.appendChild(span);
+                li.appendChild(playButton);
+                li.appendChild(stopButton);
+                musicList.appendChild(li);
+            });
+
+            // 재생 버튼 이벤트 리스너 추가
+            const playButtons = document.querySelectorAll('.play-button');
+            playButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const musicSrc = button.getAttribute('data-src');
+                    audioPlayer.src = musicSrc;
+                    audioPlayer.currentTime = 0;
+                    audioPlayer.play();
+                });
+            });
+
+            // 정지 버튼 이벤트 리스너 추가
+            const stopButtons = document.querySelectorAll('.stop-button');
+            stopButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    audioPlayer.pause();
+                    audioPlayer.currentTime = 0;
+                });
+            });
+        }
+
+        // 페이지 로드 시 음악 목록 생성
+        createMusicList();
+        
+        // 메뉴 버튼 표시 함수
+        function showMenuButton() {
+            menuButton.classList.add('visible');
+            setTimeout(() => {
+                menuButton.classList.remove('visible');
+            }, 3000);
+        }
+
+        // 초기 3초 후 메뉴 버튼 숨기기
+        setTimeout(() => {
+            menuButton.classList.remove('visible');
+        }, 3000);
+
+        // 화면 터치 시 메뉴 버튼 표시
+        document.addEventListener('touchstart', showMenuButton);
+
+        // 마우스 이동 시 메뉴 버튼 표시
+        document.addEventListener('mousemove', showMenuButton);
+        
+        menuButton.addEventListener('click', () => {
+            popupMenu.classList.toggle('active');
+        });
+
+        // 팝업 메뉴 외부 클릭 시 닫기
+        document.addEventListener('click', (e) => {
+            if (!popupMenu.contains(e.target) && !menuButton.contains(e.target)) {
+                popupMenu.classList.remove('active');
+            }
+        });
+
+        // WebGL setup for fire.png
+        window.addEventListener('DOMContentLoaded', function() {
+            const fireCanvas = document.getElementById('fireCanvas');
+            console.log('fireCanvas element:', fireCanvas); // 디버그를 위한 로그 추가
+            let gl = fireCanvas.getContext('webgl');
+
+            if (!gl) {
+                console.error('Unable to initialize WebGL. Your browser may not support it.');
+            } else {
+                // Enable blending for transparency
+                gl.enable(gl.BLEND);
+                gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+                // Vertex shader program
+                const vsSource = `
+                    attribute vec4 a_position;
+                    attribute vec2 a_texCoord;
+
+                    varying vec2 v_texCoord;
+
+                    void main() {
+                        gl_Position = a_position;
+                        v_texCoord = a_texCoord;
+                    }
+                `;
+
+                // Fragment shader program (simple texture rendering)
+                const fsSource = `
+                    precision mediump float;
+
+                    varying vec2 v_texCoord;
+
+                    uniform sampler2D u_image;
+                    uniform float u_time;
+                    uniform float u_randomSeed; // 각 불꽃의 고유한 랜덤 시드
+
+                    void main() {
+                        vec2 distortedTexCoord = v_texCoord;
+                        
+                        // 랜덤 시드에 따라 시간 속도 및 왜곡 강도 조절
+                        float timeSpeed = 5.0 + u_randomSeed * 2.0; // 일렁이는 속도 다양화
+                        float amplitudeX = 0.008 + u_randomSeed * 0.003; // X축 왜곡 강도 약하게 조절
+                        float amplitudeY = 0.008 + u_randomSeed * 0.003; // Y축 왜곡 강도 다양화
+
+                        // Y축을 따라 일렁이는 효과
+                        distortedTexCoord.x += sin(v_texCoord.y * 10.0 + u_time * timeSpeed + u_randomSeed * 100.0) * amplitudeX; 
+                        distortedTexCoord.y += cos(v_texCoord.x * 10.0 + u_time * timeSpeed + u_randomSeed * 100.0) * amplitudeY; 
+                        
+                        // 텍스처 경계를 벗어나지 않도록 클램프
+                        distortedTexCoord = clamp(distortedTexCoord, 0.0, 1.0);
+
+                        gl_FragColor = texture2D(u_image, distortedTexCoord);
+                    }
+                `;
+
+                // Compile a shader
+                function createShader(gl, type, source) {
+                    const shader = gl.createShader(type);
+                    gl.shaderSource(shader, source);
+                    gl.compileShader(shader);
+                    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                        console.error('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
+                        gl.deleteShader(shader);
+                        return null;
+                    }
+                    return shader;
+                }
+
+                // Create a program
+                function createProgram(gl, vsSource, fsSource) {
+                    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vsSource);
+                    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+                    const program = gl.createProgram();
+                    gl.attachShader(program, vertexShader);
+                    gl.attachShader(program, fragmentShader);
+                    gl.linkProgram(program);
+
+                    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                        console.error('Unable to initialize the shader program: ' + gl.getProgramInfoLog(program));
+                        return null;
+                    }
+                    return program;
+                }
+
+                const shaderProgram = createProgram(gl, vsSource, fsSource);
+                gl.useProgram(shaderProgram);
+
+                // Look up our attributes and uniforms
+                const positionAttributeLocation = gl.getAttribLocation(shaderProgram, 'a_position');
+                const texCoordAttributeLocation = gl.getAttribLocation(shaderProgram, 'a_texCoord');
+                const imageUniformLocation = gl.getUniformLocation(shaderProgram, 'u_image');
+                const timeUniformLocation = gl.getUniformLocation(shaderProgram, 'u_time'); // Will be used later
+                const randomSeedUniformLocation = gl.getUniformLocation(shaderProgram, 'u_randomSeed'); // 새로운 유니폼 위치
+
+                // Create a buffer for positions (will be updated per fire)
+                const positionBuffer = gl.createBuffer();
+
+                // Create a buffer for texture coordinates (static for a quad)
+                const texCoordBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+                    0.0,  0.0,  // top left
+                    1.0,  0.0,  // top right
+                    0.0,  1.0,  // bottom left
+                    0.0,  1.0,  // bottom left
+                    1.0,  0.0,  // top right
+                    1.0,  1.0,  // bottom right
+                ]), gl.STATIC_DRAW);
+
+                // Load fire.png texture
+                const fireTexture = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, fireTexture);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255])); // blue pixel placeholder
+
+                // Define onload handler for the fireImage. This will be called whenever fireImage.src changes.
+                fireImage.onload = function() {
+                    gl.bindTexture(gl.TEXTURE_2D, fireTexture);
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, fireImage);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+                    // Start rendering loop only once after the initial texture is loaded
+                    if (!isDrawingStarted) {
+                        requestAnimationFrame(drawScene);
+                        isDrawingStarted = true;
+                    }
+                };
+
+                // Initial texture load based on saved dark mode setting
+                updateFireTextureSource(savedDarkMode === 'enabled');
+
+                // Main rendering function
+                function drawScene(currentTime) {
+                    currentTime *= 0.001; // convert to seconds
+
+                    // Set canvas size to match display size
+                    const displayWidth = gl.canvas.clientWidth;
+                    const displayHeight = gl.canvas.clientHeight;
+                    if (gl.canvas.width !== displayWidth || gl.canvas.height !== displayHeight) {
+                        gl.canvas.width = displayWidth;
+                        gl.canvas.height = displayHeight;
+                    }
+                    console.log(`WebGL Canvas Size: ${gl.canvas.width}x${gl.canvas.height}`); // 디버그 로그 추가
+
+                    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+                    gl.clearColor(0.0, 0.0, 0.0, 0.0); // Clear with transparent background
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+
+                    gl.useProgram(shaderProgram);
+
+                    // Bind the texture
+                    gl.activeTexture(gl.TEXTURE0);
+                    gl.bindTexture(gl.TEXTURE_2D, fireTexture);
+                    gl.uniform1i(imageUniformLocation, 0);
+
+                    // Set the time uniform (for shader animation)
+                    gl.uniform1f(timeUniformLocation, currentTime);
+
+                    // Setup texture coordinates (these are static for a quad)
+                    gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+                    gl.enableVertexAttribArray(texCoordAttributeLocation);
+                    gl.vertexAttribPointer(texCoordAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+                    // Draw each fire
+                    fireData.forEach(fire => {
+                        // Set the random seed uniform for the current fire
+                        gl.uniform1f(randomSeedUniformLocation, fire.randomSeed);
+
+                        // Convert pixel coordinates to clip space (-1 to +1)
+                        const x1 = (fire.x / gl.canvas.width) * 2 - 1;
+                        const y1 = (fire.y / gl.canvas.height) * 2 - 1;
+                        const x2 = ((fire.x + fire.width) / gl.canvas.width) * 2 - 1;
+                        const y2 = ((fire.y + fire.height) / gl.canvas.height) * 2 - 1;
+
+                        // WebGL Y-axis is up, so flip Y coordinates for standard screen coordinates
+                        const positions = new Float32Array([
+                            x1,  -y1,
+                            x2,  -y1,
+                            x1,  -y2,
+                            x1,  -y2,
+                            x2,  -y1,
+                            x2,  -y2,
+                        ]);
+
+                        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                        gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+                        gl.enableVertexAttribArray(positionAttributeLocation);
+                        gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+                        gl.drawArrays(gl.TRIANGLES, 0, 6);
+                    });
+
+                    requestAnimationFrame(drawScene);
+                }
+
+                // Ensure canvas size updates on window resize
+                window.addEventListener('resize', () => {
+                    // const containerRect = candleContainer.getBoundingClientRect(); // 이제 필요 없음
+                    // fireCanvas.width = containerRect.width;
+                    // fireCanvas.height = containerRect.height;
+                    // fixed position이므로 window.innerWidth/Height 사용
+                    fireCanvas.width = window.innerWidth;
+                    fireCanvas.height = window.innerHeight;
+                    if (gl) {
+                        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+                    }
+                });
+
+                // Set initial canvas size
+                // const initialContainerRect = candleContainer.getBoundingClientRect(); // 이제 필요 없음
+                // fireCanvas.width = initialContainerRect.width;
+                // fireCanvas.height = initialContainerRect.height;
+                // fixed position이므로 window.innerWidth/Height 사용
+                fireCanvas.width = window.innerWidth;
+                fireCanvas.height = window.innerHeight;
+            }
+        });
+    </script>
+</body>
+</html> 
